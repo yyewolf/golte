@@ -267,11 +267,3 @@ Or set via environment:
 ```bash
 GOLTE_LOGGING_LEVEL=debug ./golte
 ```
-
-## License
-
-[Add your license information here]
-
-## Contributing
-
-[Add contribution guidelines here]
