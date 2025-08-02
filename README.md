@@ -1,10 +1,10 @@
 # Golte - GSM/LTE to Discord Bridge
 
-Golte is a robust bridge application that connects a GSM/LTE modem to Discord, allowing you to send and receive SMS messages through Discord commands and webhooks.
+Golte is a robust bridge application that connects a GSM/LTE modem to Discord, allowing you to send and receive SMS messages through Discord commands and embeds.
 
 ## Features
 
-- 📱 **SMS Reception**: Automatically forwards incoming SMS messages to Discord via webhooks
+- 📱 **SMS Reception**: Automatically forwards incoming SMS messages to Discord via embeds
 - 🎯 **Discord Commands**: Send SMS messages using Discord slash commands
 - 🔧 **Robust Configuration**: YAML configuration files with environment variable support
 - 📊 **Structured Logging**: Configurable logging with JSON or text output
@@ -18,7 +18,7 @@ Golte is a robust bridge application that connects a GSM/LTE modem to Discord, a
 
 - Go 1.19 or later
 - GSM/LTE modem connected via serial port
-- Discord bot token and webhook URL
+- Discord bot token and channel ID
 
 ### Building from Source
 
@@ -45,7 +45,7 @@ modem:
 
 discord:
   token: "your_discord_bot_token"
-  webhook_url: "your_discord_webhook_url"
+  channel_id: "your_discord_channel_id"
 
 logging:
   level: "info"
@@ -58,7 +58,7 @@ All configuration options can be set via environment variables with the `GOLTE_`
 
 ```bash
 export GOLTE_DISCORD_TOKEN="your_discord_bot_token"
-export GOLTE_DISCORD_WEBHOOK_URL="your_discord_webhook_url"
+export GOLTE_DISCORD_CHANNEL_ID="your_discord_channel_id"
 export GOLTE_MODEM_DEVICE="/dev/ttyUSB0"
 export GOLTE_LOGGING_LEVEL="debug"
 ```
@@ -66,7 +66,7 @@ export GOLTE_LOGGING_LEVEL="debug"
 ### 3. Command Line Flags
 
 ```bash
-./golte --discord-token="your_token" --discord-webhook="your_webhook" --device="/dev/ttyUSB0"
+./golte --discord-token="your_token" --discord-channel="your_channel_id" --device="/dev/ttyUSB0"
 ```
 
 ## Usage

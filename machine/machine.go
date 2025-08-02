@@ -16,7 +16,6 @@ type Machine struct {
 	config        *config.Config
 	modem         *ModemManager
 	discord       *DiscordManager
-	webhook       *WebhookManager
 	signalMonitor *SignalMonitor
 	logger        *slog.Logger
 	ctx           context.Context
@@ -41,11 +40,10 @@ func New(cfg *config.Config) *Machine {
 
 	// Initialize components
 	m.modem = NewModemManager(cfg)
-	m.webhook = NewWebhookManager(cfg)
 	m.signalMonitor = NewSignalMonitor(cfg, m.modem, &m.wg)
 
 	// Discord manager needs SMS function and notification function
-	m.discord = NewDiscordManager(cfg, m.SendSMS, m.sendDiscordMessage)
+	m.discord = NewDiscordManager(cfg, m.SendSMS, m.sendDiscordEmbed)
 
 	return m
 }
@@ -151,7 +149,7 @@ func (m *Machine) startMessageReception() error {
 				slog.String("from", msg.Number),
 				slog.String("message", msg.Message))
 
-			if err := m.webhook.SendMessage(msg.Number, msg.Message); err != nil {
+			if err := m.discord.SendEmbed(msg.Number, msg.Message); err != nil {
 				m.logger.Error("Failed to forward SMS to Discord",
 					slog.String("from", msg.Number),
 					slog.Any("error", err))
@@ -166,10 +164,10 @@ func (m *Machine) startMessageReception() error {
 		})
 }
 
-// sendDiscordMessage sends a formatted message to Discord (for outgoing SMS notifications)
-func (m *Machine) sendDiscordMessage(from, message string) {
-	if err := m.webhook.SendMessage(from, message); err != nil {
-		m.logger.Error("Failed to send Discord message",
+// sendDiscordEmbed sends a formatted embed to Discord (for outgoing SMS notifications)
+func (m *Machine) sendDiscordEmbed(from, message string) {
+	if err := m.discord.SendEmbed(from, message); err != nil {
+		m.logger.Error("Failed to send Discord embed",
 			slog.String("from", from),
 			slog.Any("error", err))
 	}

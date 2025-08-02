@@ -28,8 +28,8 @@ type ModemConfig struct {
 
 // DiscordConfig holds Discord-specific configuration
 type DiscordConfig struct {
-	Token      string `mapstructure:"token"`
-	WebhookURL string `mapstructure:"webhook_url"`
+	Token     string `mapstructure:"token"`
+	ChannelID string `mapstructure:"channel_id"`
 }
 
 // LoggingConfig holds logging configuration
@@ -81,8 +81,8 @@ func (c *Config) Validate() error {
 	if c.Discord.Token == "" {
 		return &ConfigError{Field: "discord.token", Message: "Discord token is required"}
 	}
-	if c.Discord.WebhookURL == "" {
-		return &ConfigError{Field: "discord.webhook_url", Message: "Discord webhook URL is required"}
+	if c.Discord.ChannelID == "" {
+		return &ConfigError{Field: "discord.channel_id", Message: "Discord channel ID is required"}
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ go 1.23.4
 
 require (
 	github.com/disgoorg/disgo v0.18.16
+	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/warthog618/modem v0.4.0
@@ -11,7 +12,6 @@ require (
 
 require (
 	github.com/disgoorg/json v1.2.0 // indirect
-	github.com/disgoorg/snowflake/v2 v2.0.3 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect

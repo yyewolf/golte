@@ -3,7 +3,9 @@ package machine
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
+	"time"
 
 	"golte/config"
 
@@ -11,6 +13,8 @@ import (
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
+	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/snowflake/v2"
 )
 
 // DiscordManager handles all Discord bot operations
@@ -37,8 +41,11 @@ func (d *DiscordManager) Initialize() error {
 	d.logger.Info("Initializing Discord client")
 
 	client, err := disgo.New(d.config.Discord.Token,
-		bot.WithDefaultGateway(),
+		bot.WithGatewayConfigOpts(
+			gateway.WithIntents(gateway.IntentMessageContent|gateway.IntentGuilds|gateway.IntentGuildMessages|gateway.IntentDirectMessages),
+		),
 		bot.WithEventListenerFunc(d.commandListener),
+		bot.WithEventListenerFunc(d.messageListener),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create Discord client: %w", err)
@@ -132,4 +139,120 @@ func (d *DiscordManager) commandListener(event *events.ApplicationCommandInterac
 			d.notifyFunc(fmt.Sprintf("To %s", phoneNumber), message)
 		}
 	}
+}
+
+// messageListener handles Discord message events for replying to SMS embeds
+func (d *DiscordManager) messageListener(event *events.MessageCreate) {
+	log.Printf("Received message from Discord: %s", event.Message.Content)
+	// Ignore bot messages and messages not in the configured channel
+	if event.Message.Author.Bot || event.Message.ChannelID.String() != d.config.Discord.ChannelID {
+		return
+	}
+
+	// Check if this message is a reply
+	if event.Message.MessageReference == nil {
+		d.logger.Info("Message is not a reply, ignoring")
+		return
+	}
+
+	// Get the referenced message
+	referencedMessage, err := d.client.Rest().GetMessage(event.Message.ChannelID, *event.Message.MessageReference.MessageID)
+	if err != nil {
+		d.logger.Debug("Failed to get referenced message", slog.Any("error", err))
+		return
+	}
+
+	// Check if the referenced message is from our bot and has an SMS embed
+	if referencedMessage.Author.ID != d.client.ApplicationID() || len(referencedMessage.Embeds) == 0 {
+		d.logger.Info("Referenced message is not from bot or has no embeds, ignoring")
+		return
+	}
+
+	// Find the SMS embed by checking for the SMS title
+	var smsEmbed *discord.Embed
+	for _, embed := range referencedMessage.Embeds {
+		if embed.Title == "📱 SMS Message" {
+			smsEmbed = &embed
+			break
+		}
+	}
+
+	if smsEmbed == nil {
+		d.logger.Info("No SMS embed found in referenced message")
+		return
+	}
+
+	// Extract phone number from the embed's author field (which contains the phone number)
+	phoneNumber := smsEmbed.Author.Name
+	if phoneNumber == "" {
+		d.logger.Info("No phone number found in SMS embed")
+		return
+	}
+
+	replyMessage := event.Message.Content
+	if replyMessage == "" {
+		d.logger.Info("Empty reply message")
+		return
+	}
+
+	d.logger.Info("Received SMS reply from Discord",
+		slog.String("number", phoneNumber),
+		slog.String("user", event.Message.Author.Username),
+		slog.String("message", replyMessage))
+
+	// Send the SMS
+	err = d.smsFunc(phoneNumber, replyMessage)
+	if err != nil {
+		d.logger.Error("Failed to send SMS reply",
+			slog.String("number", phoneNumber),
+			slog.Any("error", err))
+
+		// React with an error emoji
+		err = d.client.Rest().AddReaction(event.Message.ChannelID, event.Message.ID, "❌")
+		if err != nil {
+			d.logger.Error("Failed to add error reaction", slog.Any("error", err))
+		}
+		return
+	}
+
+	// React with a checkmark to confirm SMS was sent
+	err = d.client.Rest().AddReaction(event.Message.ChannelID, event.Message.ID, "✅")
+	if err != nil {
+		d.logger.Error("Failed to add success reaction", slog.Any("error", err))
+	}
+}
+
+// SendEmbed sends an embed message to the configured Discord channel
+func (d *DiscordManager) SendEmbed(from, message string) error {
+	channelID, err := snowflake.Parse(d.config.Discord.ChannelID)
+	if err != nil {
+		return fmt.Errorf("invalid channel ID: %w", err)
+	}
+
+	embed := discord.NewEmbedBuilder().
+		SetTitle("📱 SMS Message").
+		SetDescription(message).
+		AddField("From", from, true).
+		SetAuthor(from, "", "").
+		SetColor(0x00ff00).
+		SetTimestamp(time.Now()).
+		Build()
+
+	_, err = d.client.Rest().CreateMessage(channelID, discord.NewMessageCreateBuilder().
+		SetEmbeds(embed).
+		Build())
+
+	if err != nil {
+		d.logger.Error("Failed to send embed to Discord",
+			slog.String("from", from),
+			slog.String("channel", d.config.Discord.ChannelID),
+			slog.Any("error", err))
+		return fmt.Errorf("failed to send Discord message: %w", err)
+	}
+
+	d.logger.Debug("Sent embed to Discord",
+		slog.String("from", from),
+		slog.String("channel", d.config.Discord.ChannelID))
+
+	return nil
 }

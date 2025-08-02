@@ -70,7 +70,7 @@ var configShowCmd = &cobra.Command{
 		fmt.Printf("    Timeout: %s\n", cfg.Modem.Timeout)
 		fmt.Printf("  Discord:\n")
 		fmt.Printf("    Token: %s\n", maskToken(cfg.Discord.Token))
-		fmt.Printf("    Webhook URL: %s\n", maskURL(cfg.Discord.WebhookURL))
+		fmt.Printf("    Channel ID: %s\n", cfg.Discord.ChannelID)
 		fmt.Printf("  Logging:\n")
 		fmt.Printf("    Level: %s\n", cfg.Logging.Level)
 		fmt.Printf("    Format: %s\n", cfg.Logging.Format)
@@ -91,12 +91,4 @@ func maskToken(token string) string {
 		return "***"
 	}
 	return token[:8] + "***"
-}
-
-// maskURL masks a webhook URL for display
-func maskURL(url string) string {
-	if len(url) <= 20 {
-		return "***"
-	}
-	return url[:20] + "***"
 }

@@ -10,7 +10,7 @@ modem:
 # Discord configuration
 discord:
   token: ""                # Discord bot token (required)
-  webhook_url: ""          # Discord webhook URL for incoming messages (required)
+  channel_id: ""           # Discord channel ID for incoming messages (required)
 
 # Logging configuration
 logging:
@@ -19,6 +19,6 @@ logging:
 
 # Environment variables can also be used:
 # GOLTE_DISCORD_TOKEN=your_discord_token
-# GOLTE_DISCORD_WEBHOOK_URL=your_webhook_url
+# GOLTE_DISCORD_CHANNEL_ID=your_channel_id
 # GOLTE_MODEM_DEVICE=/dev/ttyUSB0
 # GOLTE_LOGGING_LEVEL=debug

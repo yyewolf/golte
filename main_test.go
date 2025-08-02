@@ -17,8 +17,8 @@ func TestConfigValidation(t *testing.T) {
 			name: "valid config",
 			config: &config.Config{
 				Discord: config.DiscordConfig{
-					Token:      "test-token",
-					WebhookURL: "https://discord.com/api/webhooks/test",
+					Token:     "test-token",
+					ChannelID: "123456789012345678",
 				},
 				Modem: config.ModemConfig{
 					Device:  "/dev/ttyUSB0",
@@ -36,13 +36,13 @@ func TestConfigValidation(t *testing.T) {
 			name: "missing discord token",
 			config: &config.Config{
 				Discord: config.DiscordConfig{
-					WebhookURL: "https://discord.com/api/webhooks/test",
+					ChannelID: "123456789012345678",
 				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "missing webhook URL",
+			name: "missing channel ID",
 			config: &config.Config{
 				Discord: config.DiscordConfig{
 					Token: "test-token",

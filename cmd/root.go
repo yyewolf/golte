@@ -52,7 +52,7 @@ func init() {
 	rootCmd.Flags().IntP("baud", "b", 115200, "baud rate")
 	rootCmd.Flags().Duration("timeout", 20*time.Second, "command timeout period")
 	rootCmd.Flags().String("discord-token", "", "Discord bot token")
-	rootCmd.Flags().String("discord-webhook", "", "Discord webhook URL")
+	rootCmd.Flags().String("discord-channel", "", "Discord channel ID")
 	rootCmd.Flags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.Flags().String("log-format", "text", "log format (text, json)")
 
@@ -61,7 +61,7 @@ func init() {
 	viper.BindPFlag("modem.baud", rootCmd.Flags().Lookup("baud"))
 	viper.BindPFlag("modem.timeout", rootCmd.Flags().Lookup("timeout"))
 	viper.BindPFlag("discord.token", rootCmd.Flags().Lookup("discord-token"))
-	viper.BindPFlag("discord.webhook_url", rootCmd.Flags().Lookup("discord-webhook"))
+	viper.BindPFlag("discord.channel_id", rootCmd.Flags().Lookup("discord-channel"))
 	viper.BindPFlag("logging.level", rootCmd.Flags().Lookup("log-level"))
 	viper.BindPFlag("logging.format", rootCmd.Flags().Lookup("log-format"))
 }
