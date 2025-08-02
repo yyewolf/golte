@@ -1,0 +1,24 @@
+# Golte Configuration File
+# This file contains configuration for the GSM/LTE to Discord bridge
+
+# Modem configuration
+modem:
+  device: "/dev/serial0"    # Path to the modem device
+  baud: 115200             # Baud rate for serial communication
+  timeout: "20s"           # Command timeout duration
+
+# Discord configuration
+discord:
+  token: ""                # Discord bot token (required)
+  webhook_url: ""          # Discord webhook URL for incoming messages (required)
+
+# Logging configuration
+logging:
+  level: "info"            # Log level: debug, info, warn, error
+  format: "text"           # Log format: text or json
+
+# Environment variables can also be used:
+# GOLTE_DISCORD_TOKEN=your_discord_token
+# GOLTE_DISCORD_WEBHOOK_URL=your_webhook_url
+# GOLTE_MODEM_DEVICE=/dev/ttyUSB0
+# GOLTE_LOGGING_LEVEL=debug
