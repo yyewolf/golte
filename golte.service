@@ -1,0 +1,36 @@
+[Unit]
+Description=Golte - GSM/LTE to Discord Bridge
+Documentation=https://github.com/yewolf/golte
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=golte
+Group=dialout
+WorkingDirectory=/opt/golte
+ExecStart=/opt/golte/golte --config /opt/golte/config.yaml
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=golte
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/golte
+CapabilityBoundingSet=CAP_DAC_OVERRIDE
+
+# Environment
+Environment=GOLTE_LOGGING_LEVEL=info
+Environment=GOLTE_LOGGING_FORMAT=json
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
