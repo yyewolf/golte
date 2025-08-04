@@ -28,8 +28,10 @@ type ModemConfig struct {
 
 // DiscordConfig holds Discord-specific configuration
 type DiscordConfig struct {
-	Token     string `mapstructure:"token"`
-	ChannelID string `mapstructure:"channel_id"`
+	Token          string `mapstructure:"token"`
+	ChannelID      string `mapstructure:"channel_id"`
+	GuildID        string `mapstructure:"guild_id"`
+	VoiceChannelID string `mapstructure:"voice_channel_id"`
 }
 
 // LoggingConfig holds logging configuration
@@ -83,6 +85,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Discord.ChannelID == "" {
 		return &ConfigError{Field: "discord.channel_id", Message: "Discord channel ID is required"}
+	}
+	if c.Discord.GuildID == "" {
+		return &ConfigError{Field: "discord.guild_id", Message: "Discord guild ID is required"}
+	}
+	if c.Discord.VoiceChannelID == "" {
+		return &ConfigError{Field: "discord.voice_channel_id", Message: "Discord voice channel ID is required"}
 	}
 	return nil
 }

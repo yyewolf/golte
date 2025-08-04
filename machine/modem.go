@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"golte/call"
 	"golte/config"
 
 	"github.com/warthog618/modem/at"
@@ -15,16 +16,19 @@ import (
 
 // ModemManager handles all GSM modem operations
 type ModemManager struct {
-	config *config.Config
-	gsm    *gsm.GSM
-	logger *slog.Logger
+	config             *config.Config
+	gsm                *gsm.GSM
+	call               *call.Call
+	logger             *slog.Logger
+	callNotifyCallback func(from, message string)
 }
 
 // NewModemManager creates a new ModemManager instance
-func NewModemManager(cfg *config.Config) *ModemManager {
+func NewModemManager(cfg *config.Config, callNotifyCallback func(from, message string)) *ModemManager {
 	return &ModemManager{
-		config: cfg,
-		logger: slog.With("component", "modem"),
+		config:             cfg,
+		logger:             slog.With("component", "modem"),
+		callNotifyCallback: callNotifyCallback,
 	}
 }
 
@@ -44,14 +48,40 @@ func (m *ModemManager) Initialize() error {
 
 	var mio io.ReadWriter = serialModem
 
-	m.gsm = gsm.New(at.New(mio,
+	at := at.New(mio,
 		at.WithTimeout(m.config.Modem.Timeout),
-		at.WithCmds("I")))
+		at.WithCmds("I"))
+
+	m.gsm = gsm.New(at)
+	m.call = call.New(at, func(call call.CallStatus) {
+		m.logger.Info("Call status update",
+			slog.Int("index", call.Index),
+			slog.String("direction", call.Direction),
+			slog.String("status", call.Status),
+			slog.String("mode", call.Mode),
+			slog.String("number", call.Number),
+			slog.String("type", call.Type))
+
+		// Send Discord notification for incoming calls
+		if call.Direction == "MT" && call.Status == "INCOMING" && m.callNotifyCallback != nil {
+			message := fmt.Sprintf("📞 Incoming %s call", call.Mode)
+			m.callNotifyCallback(call.Number, message)
+		}
+
+		m.call.PickUp()
+	})
 
 	if err := m.gsm.Init(); err != nil {
 		serialModem.Close()
 		return fmt.Errorf("failed to initialize modem: %w", err)
 	}
+
+	if err := m.call.Init(); err != nil {
+		serialModem.Close()
+		return fmt.Errorf("failed to initialize call manager: %w", err)
+	}
+
+	m.call.StartWorker(5 * time.Second)
 
 	m.logger.Info("Modem initialized successfully")
 	return nil
@@ -107,10 +137,45 @@ func (m *ModemManager) GetSignalQuality() (interface{}, error) {
 	return m.gsm.Command("+CSQ")
 }
 
+// StartCall initiates a call to the specified number
+func (m *ModemManager) StartCall(number string) error {
+	m.logger.Info("Starting call",
+		slog.String("number", number))
+
+	err := m.call.StartCall(number)
+	if err != nil {
+		m.logger.Error("Failed to start call",
+			slog.String("number", number),
+			slog.Any("error", err))
+		return err
+	}
+
+	m.logger.Info("Call initiated successfully", slog.String("number", number))
+	return nil
+}
+
+// HangUpCall hangs up the current call
+func (m *ModemManager) HangUpCall() error {
+	m.logger.Info("Hanging up call")
+
+	err := m.call.HangUp()
+	if err != nil {
+		m.logger.Error("Failed to hang up call",
+			slog.Any("error", err))
+		return err
+	}
+
+	m.logger.Info("Call hung up successfully")
+	return nil
+}
+
 // Closed returns a channel that's closed when the modem connection is lost
 func (m *ModemManager) Closed() <-chan struct{} {
 	if m.gsm != nil {
 		return m.gsm.Closed()
+	}
+	if m.call != nil {
+		return m.call.Closed()
 	}
 	return nil
 }

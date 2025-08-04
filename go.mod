@@ -3,7 +3,9 @@ module golte
 go 1.23.4
 
 require (
+	github.com/disgoorg/audio v0.0.0-20230108034007-9faf157ff94b
 	github.com/disgoorg/disgo v0.18.16
+	github.com/disgoorg/ffmpeg-audio v0.0.0-20240711185218-971420b16e69
 	github.com/disgoorg/snowflake/v2 v2.0.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
@@ -12,10 +14,12 @@ require (
 
 require (
 	github.com/disgoorg/json v1.2.0 // indirect
+	github.com/disgoorg/log v1.2.0 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/jonas747/ogg v0.0.0-20161220051205-b4f6f4cf3757 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect

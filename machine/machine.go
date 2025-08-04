@@ -39,11 +39,11 @@ func New(cfg *config.Config) *Machine {
 	}
 
 	// Initialize components
-	m.modem = NewModemManager(cfg)
+	m.modem = NewModemManager(cfg, m.sendCallNotification)
 	m.signalMonitor = NewSignalMonitor(cfg, m.modem, &m.wg)
 
 	// Discord manager needs SMS function and notification function
-	m.discord = NewDiscordManager(cfg, m.SendSMS, m.sendDiscordEmbed)
+	m.discord = NewDiscordManager(cfg, m.SendSMS, m.StartCall, m.HangUpCall, m.sendDiscordEmbed)
 
 	return m
 }
@@ -134,6 +134,16 @@ func (m *Machine) SendSMS(number, message string) error {
 	return m.modem.SendSMS(number, message)
 }
 
+// StartCall initiates a call through the modem
+func (m *Machine) StartCall(number string) error {
+	return m.modem.StartCall(number)
+}
+
+// HangUpCall hangs up the current call
+func (m *Machine) HangUpCall() error {
+	return m.modem.HangUpCall()
+}
+
 // Error returns the error channel for monitoring errors
 func (m *Machine) Error() <-chan error {
 	return m.errorChan
@@ -149,7 +159,7 @@ func (m *Machine) startMessageReception() error {
 				slog.String("from", msg.Number),
 				slog.String("message", msg.Message))
 
-			if err := m.discord.SendEmbed(msg.Number, msg.Message); err != nil {
+			if err := m.discord.SendEmbed(NotificationTypeSMS, msg.Number, msg.Message); err != nil {
 				m.logger.Error("Failed to forward SMS to Discord",
 					slog.String("from", msg.Number),
 					slog.Any("error", err))
@@ -164,10 +174,20 @@ func (m *Machine) startMessageReception() error {
 		})
 }
 
-// sendDiscordEmbed sends a formatted embed to Discord (for outgoing SMS notifications)
-func (m *Machine) sendDiscordEmbed(from, message string) {
-	if err := m.discord.SendEmbed(from, message); err != nil {
+// sendDiscordEmbed sends a formatted embed to Discord
+func (m *Machine) sendDiscordEmbed(notificationType NotificationType, from, message string) {
+	if err := m.discord.SendEmbed(notificationType, from, message); err != nil {
 		m.logger.Error("Failed to send Discord embed",
+			slog.String("type", string(notificationType)),
+			slog.String("from", from),
+			slog.Any("error", err))
+	}
+}
+
+// sendCallNotification sends a call notification to Discord
+func (m *Machine) sendCallNotification(from, message string) {
+	if err := m.discord.SendEmbed(NotificationTypeCall, from, message); err != nil {
+		m.logger.Error("Failed to send call notification to Discord",
 			slog.String("from", from),
 			slog.Any("error", err))
 	}

@@ -6,12 +6,12 @@ Wants=network.target
 
 [Service]
 Type=simple
-User=golte
+User=root
 Group=dialout
 WorkingDirectory=/opt/golte
 ExecStart=/opt/golte/golte --config /opt/golte/config.yaml
 Restart=always
-RestartSec=10
+RestartSec=60
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=golte

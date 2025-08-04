@@ -11,6 +11,8 @@ modem:
 discord:
   token: ""                # Discord bot token (required)
   channel_id: ""           # Discord channel ID for incoming messages (required)
+  guild_id: ""             # Discord guild (server) ID (required)
+  voice_channel_id: ""     # Discord voice channel ID for calls (required)
 
 # Logging configuration
 logging:
@@ -20,5 +22,7 @@ logging:
 # Environment variables can also be used:
 # GOLTE_DISCORD_TOKEN=your_discord_token
 # GOLTE_DISCORD_CHANNEL_ID=your_channel_id
+# GOLTE_DISCORD_GUILD_ID=your_guild_id
+# GOLTE_DISCORD_VOICE_CHANNEL_ID=your_voice_channel_id
 # GOLTE_MODEM_DEVICE=/dev/ttyUSB0
 # GOLTE_LOGGING_LEVEL=debug
