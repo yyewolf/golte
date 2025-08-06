@@ -1,34 +1,32 @@
 package call
 
 import (
-	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
-	"time"
+	"sync"
 
 	"github.com/warthog618/modem/at"
 	"github.com/warthog618/modem/info"
 )
 
-// CallCallback is a function type for handling incoming calls
-type CallCallback func(call CallStatus)
+// IncomingCallHandler is a callback for incoming calls with phone number
+type IncomingCallHandler func(phoneNumber string)
 
 // Call represents a call manager that wraps AT modem functionality
 type Call struct {
 	*at.AT
-	callback        CallCallback
-	workerCtx       context.Context
-	workerCancel    context.CancelFunc
-	isWorkerRunning bool
+	incomingHandler IncomingCallHandler
+	isListening     bool
+	indicationMutex sync.RWMutex
 }
 
-// New creates a new Call manager with the provided AT modem and callback function
-func New(a *at.AT, callback CallCallback) *Call {
+// New creates a new Call manager with the provided AT modem
+func New(a *at.AT) *Call {
 	return &Call{
-		AT:       a,
-		callback: callback,
+		AT: a,
 	}
 }
 
@@ -236,79 +234,127 @@ func (c *Call) GetVMuteStatus(options ...at.CommandOption) (bool, error) {
 	return false, fmt.Errorf("no voice mute status found in response")
 }
 
-// StartWorker starts a background worker that monitors for incoming calls
-// The worker polls the call status periodically and triggers the callback for new incoming calls
-func (c *Call) StartWorker(pollInterval time.Duration) error {
-	if c.isWorkerRunning {
-		return fmt.Errorf("worker is already running")
+// StartListening begins listening for incoming calls using AT indications
+// The handler will be called with the phone number when an incoming call is detected
+func (c *Call) StartListening(handler IncomingCallHandler) error {
+	c.indicationMutex.Lock()
+	defer c.indicationMutex.Unlock()
+
+	if c.isListening {
+		return fmt.Errorf("already listening for incoming calls")
 	}
 
-	if c.callback == nil {
-		return fmt.Errorf("no callback function provided")
+	if handler == nil {
+		return fmt.Errorf("handler cannot be nil")
 	}
 
-	c.workerCtx, c.workerCancel = context.WithCancel(context.Background())
-	c.isWorkerRunning = true
+	c.incomingHandler = handler
 
-	go c.worker(pollInterval)
+	// Add indication for CLIP (Calling Line Identification Presentation)
+	c.AddIndication("+CLIP", func(info []string) {
+		if len(info) > 0 {
+			phoneNumber := c.extractPhoneNumber(info[0])
+			if phoneNumber != "" && c.incomingHandler != nil {
+				c.incomingHandler(phoneNumber)
+			}
+		}
+	})
+
+	// Enable caller ID notifications
+	_, err := c.Command("+CLIP=1")
+	if err != nil {
+		return fmt.Errorf("failed to enable caller ID: %w", err)
+	}
+
+	c.isListening = true
 	return nil
 }
 
-// StopWorker stops the background worker
-func (c *Call) StopWorker() {
-	if c.isWorkerRunning && c.workerCancel != nil {
-		c.workerCancel()
-		c.isWorkerRunning = false
+// StopListening stops listening for incoming calls
+func (c *Call) StopListening() error {
+	c.indicationMutex.Lock()
+	defer c.indicationMutex.Unlock()
+
+	if !c.isListening {
+		return fmt.Errorf("not currently listening")
 	}
-}
 
-// IsWorkerRunning returns whether the worker is currently running
-func (c *Call) IsWorkerRunning() bool {
-	return c.isWorkerRunning
-}
+	// Remove the CLIP indication by setting it to nil
+	c.AddIndication("+CLIP", nil)
 
-// worker is the background goroutine that monitors for incoming calls
-func (c *Call) worker(pollInterval time.Duration) {
-	defer func() {
-		c.isWorkerRunning = false
-	}()
-
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	var lastKnownCalls map[int]CallStatus
-
-	for {
-		select {
-		case <-c.workerCtx.Done():
-			return
-		case <-ticker.C:
-			calls, err := c.GetCallStatus()
-			if err != nil {
-				log.Printf("Error retrieving call status: %v", err)
-				// Log error but continue monitoring
-				continue
-			}
-
-			currentCalls := make(map[int]CallStatus)
-			for _, call := range calls {
-				currentCalls[call.Index] = call
-			}
-
-			// Check for new incoming calls
-			for index, call := range currentCalls {
-				if lastCall, exists := lastKnownCalls[index]; !exists {
-					// New call detected
-					if call.Status == "INCOMING" && c.callback != nil {
-						c.callback(call)
-					}
-				} else if lastCall.Status != call.Status && call.Status == "INCOMING" && c.callback != nil {
-					// Call status changed to incoming
-					c.callback(call)
-				}
-			}
-
-			lastKnownCalls = currentCalls
-		}
+	// Disable caller ID notifications
+	_, err := c.Command("+CLIP=0")
+	if err != nil {
+		log.Printf("Warning: failed to disable caller ID: %v", err)
 	}
+
+	c.incomingHandler = nil
+	c.isListening = false
+	return nil
 }
+
+// IsListening returns whether the call manager is currently listening for incoming calls
+func (c *Call) IsListening() bool {
+	c.indicationMutex.RLock()
+	defer c.indicationMutex.RUnlock()
+	return c.isListening
+}
+
+// extractPhoneNumber extracts the phone number from a CLIP indication
+// CLIP format: +CLIP: "number",type
+func (c *Call) extractPhoneNumber(clipData string) string {
+	// Use regex to extract phone number from CLIP indication
+	reg := regexp.MustCompile(`\+CLIP:\s*"([^"]+)"`)
+	matches := reg.FindStringSubmatch(clipData)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+// SetIncomingCallHandler sets or updates the incoming call handler
+// This allows changing the handler without stopping and restarting listening
+func (c *Call) SetIncomingCallHandler(handler IncomingCallHandler) error {
+	c.indicationMutex.Lock()
+	defer c.indicationMutex.Unlock()
+
+	if !c.isListening {
+		return fmt.Errorf("not currently listening, call StartListening first")
+	}
+
+	if handler == nil {
+		return fmt.Errorf("handler cannot be nil")
+	}
+
+	c.incomingHandler = handler
+	return nil
+}
+
+// High-level API usage example:
+//
+// callManager := call.New(atModem)
+//
+// // Start listening for incoming calls
+// err := callManager.StartListening(func(phoneNumber string) {
+//     fmt.Printf("Incoming call from: %s\n", phoneNumber)
+//     // Handle the incoming call (e.g., answer, log, etc.)
+// })
+// if err != nil {
+//     log.Printf("Error starting listener: %v", err)
+// }
+//
+// // Later, stop listening
+// err = callManager.StopListening()
+// if err != nil {
+//     log.Printf("Error stopping listener: %v", err)
+// }
+//
+// Low-level AT indication usage example:
+//
+// at.AddIndication("+CLIP", func(info []string) {
+// 	reg := regexp.MustCompile(`"+CLIP: "([^"]+)"`)
+// 	phoneNumber := reg.FindStringSubmatch(info[0])
+// 	if len(phoneNumber) > 1 {
+// 		fmt.Println("Incoming call from:", phoneNumber[1])
+// 	}
+// })

@@ -53,23 +53,7 @@ func (m *ModemManager) Initialize() error {
 		at.WithCmds("I"))
 
 	m.gsm = gsm.New(at)
-	m.call = call.New(at, func(call call.CallStatus) {
-		m.logger.Info("Call status update",
-			slog.Int("index", call.Index),
-			slog.String("direction", call.Direction),
-			slog.String("status", call.Status),
-			slog.String("mode", call.Mode),
-			slog.String("number", call.Number),
-			slog.String("type", call.Type))
-
-		// Send Discord notification for incoming calls
-		if call.Direction == "MT" && call.Status == "INCOMING" && m.callNotifyCallback != nil {
-			message := fmt.Sprintf("📞 Incoming %s call", call.Mode)
-			m.callNotifyCallback(call.Number, message)
-		}
-
-		m.call.PickUp()
-	})
+	m.call = call.New(at)
 
 	if err := m.gsm.Init(); err != nil {
 		serialModem.Close()
@@ -81,7 +65,11 @@ func (m *ModemManager) Initialize() error {
 		return fmt.Errorf("failed to initialize call manager: %w", err)
 	}
 
-	m.call.StartWorker(5 * time.Second)
+	m.call.StartListening(func(call string) {
+		message := fmt.Sprintf("📞 Incoming voice call")
+		m.callNotifyCallback(call, message)
+		m.call.PickUp()
+	})
 
 	m.logger.Info("Modem initialized successfully")
 	return nil
