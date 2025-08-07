@@ -1,11 +1,12 @@
 # Golte - GSM/LTE to Discord Bridge
 
-Golte is a robust bridge application that connects a GSM/LTE modem to Discord, allowing you to send and receive SMS messages through Discord commands and embeds.
+Golte is a robust bridge application that connects a GSM/LTE modem to Discord, allowing you to send and receive SMS messages and make voice calls through Discord commands and embeds.
 
 ## Features
 
 - 📱 **SMS Reception**: Automatically forwards incoming SMS messages to Discord via embeds
-- 🎯 **Discord Commands**: Send SMS messages using Discord slash commands
+- 📞 **Voice Calls**: Make and receive voice calls through GSM/LTE modem with Discord notifications
+- 🎯 **Discord Commands**: Send SMS messages and manage calls using Discord slash commands
 - 🔧 **Robust Configuration**: YAML configuration files with environment variable support
 - 📊 **Structured Logging**: Configurable logging with JSON or text output
 - 🔄 **Signal Monitoring**: Automatic signal quality monitoring
@@ -46,6 +47,8 @@ modem:
 discord:
   token: "your_discord_bot_token"
   channel_id: "your_discord_channel_id"
+  guild_id: "your_discord_guild_id"
+  voice_channel_id: "your_discord_voice_channel_id"
 
 logging:
   level: "info"
@@ -59,6 +62,8 @@ All configuration options can be set via environment variables with the `GOLTE_`
 ```bash
 export GOLTE_DISCORD_TOKEN="your_discord_bot_token"
 export GOLTE_DISCORD_CHANNEL_ID="your_discord_channel_id"
+export GOLTE_DISCORD_GUILD_ID="your_discord_guild_id"
+export GOLTE_DISCORD_VOICE_CHANNEL_ID="your_discord_voice_channel_id"
 export GOLTE_MODEM_DEVICE="/dev/ttyUSB0"
 export GOLTE_LOGGING_LEVEL="debug"
 ```
@@ -66,7 +71,7 @@ export GOLTE_LOGGING_LEVEL="debug"
 ### 3. Command Line Flags
 
 ```bash
-./golte --discord-token="your_token" --discord-channel="your_channel_id" --device="/dev/ttyUSB0"
+./golte --discord-token="your_token" --discord-channel="your_channel_id" --discord-guild="your_guild_id" --discord-voice-channel="your_voice_channel_id" --device="/dev/ttyUSB0"
 ```
 
 ## Usage
@@ -115,7 +120,9 @@ Or with custom configuration:
 - `--baud, -b`: Baud rate (default: 115200)
 - `--timeout`: Command timeout (default: 20s)
 - `--discord-token`: Discord bot token
-- `--discord-webhook`: Discord webhook URL
+- `--discord-channel`: Discord channel ID for SMS messages
+- `--discord-guild`: Discord guild (server) ID
+- `--discord-voice-channel`: Discord voice channel ID for call notifications
 - `--log-level`: Log level (debug, info, warn, error)
 - `--log-format`: Log format (text, json)
 
@@ -128,14 +135,15 @@ Or with custom configuration:
 3. Go to the "Bot" section
 4. Create a bot and copy the token
 5. Enable the "Slash Commands" scope
-6. Add the bot to your server with appropriate permissions
+6. Add the bot to your server with appropriate permissions (Send Messages, Use Slash Commands, Connect to Voice Channels)
 
-### 2. Create a Webhook
+### 2. Get Discord IDs
 
-1. Go to your Discord server settings
-2. Navigate to "Integrations" → "Webhooks"
-3. Create a new webhook
-4. Copy the webhook URL
+1. **Guild ID**: Right-click on your Discord server name and select "Copy Server ID"
+2. **Channel ID**: Right-click on the text channel for SMS messages and select "Copy Channel ID"  
+3. **Voice Channel ID**: Right-click on the voice channel for call notifications and select "Copy Channel ID"
+
+Note: You may need to enable Developer Mode in Discord User Settings > Advanced > Developer Mode
 
 ## Hardware Setup
 
@@ -168,6 +176,44 @@ Send an SMS message through the modem.
 ```
 /send number:+1234567890 message:Hello from Discord!
 ```
+
+### `/call`
+Initiate a voice call through the modem.
+
+**Options:**
+- `number`: Phone number to call (required)
+
+**Example:**
+```
+/call number:+1234567890
+```
+
+### `/hangup`
+Hang up the current active call.
+
+**Example:**
+```
+/hangup
+```
+
+## Call Features
+
+### Incoming Calls
+- Automatically detects incoming voice calls
+- Sends notifications to Discord with caller ID
+- Automatically answers incoming calls
+- Supports caller line identification (CLIP)
+
+### Outgoing Calls  
+- Initiate calls through Discord slash commands
+- Real-time call status notifications
+- Manual call termination via Discord commands
+
+### Call Management
+- Mute/unmute microphone during calls
+- Voice mute control
+- Call status monitoring
+- Multiple call handling support
 
 ## Logging
 
@@ -218,6 +264,7 @@ golte/
 ├── config/        # Configuration management
 ├── logger/        # Logging utilities
 ├── machine/       # Core machine logic
+├── call/          # Voice call management and AT commands
 ├── main.go        # Application entry point
 ├── go.mod         # Go module definition
 └── config.yaml.example  # Example configuration
@@ -246,13 +293,20 @@ go build -ldflags="-X 'golte/cmd.Version=v1.0.0' -X 'golte/cmd.GitCommit=$(git r
 
 3. **Discord Commands Not Working**
    - Verify bot token is correct
-   - Check bot permissions in Discord server
+   - Check bot permissions in Discord server (Send Messages, Use Slash Commands, Connect to Voice Channels)
    - Ensure slash commands are registered
+   - Verify guild ID and channel IDs are correct
 
 4. **SMS Not Being Received**
    - Check SIM card is inserted and activated
    - Verify signal strength
    - Check modem logs for AT command errors
+
+5. **Call Issues**
+   - Verify voice channel ID is correct
+   - Check modem supports voice calls (AT+CLIP command)
+   - Ensure proper audio hardware connection
+   - Check for conflicting applications using the modem
 
 ### Debug Mode
 
