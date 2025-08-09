@@ -43,7 +43,10 @@ func (s *PCMStreamer) Close() error {
 		return ErrAlreadyClosed
 	}
 	s.closed = true
-	s.closedCh <- struct{}{}
+	go func() {
+		s.closedCh <- struct{}{}
+		close(s.closedCh)
+	}()
 	return nil
 }
 
@@ -89,7 +92,6 @@ func (m *PCMStreamer) GetStreamer() (beep.Streamer, beep.Format, error) {
 
 // Reopen copies the streamer's state but resets the PCM buffer
 func (s *PCMStreamer) Reopen() *PCMStreamer {
-	close(s.closedCh)
 	return &PCMStreamer{
 		silence:  s.silence,
 		packets:  s.packets,

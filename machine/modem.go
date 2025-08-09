@@ -42,6 +42,7 @@ func NewModemManager(cfg *config.Config, playback *playback.Playback, callNotify
 		logger:             slog.With("component", "modem"),
 		callNotifyCallback: callNotifyCallback,
 		playback:           playback,
+		state:              NewState(),
 	}
 }
 
