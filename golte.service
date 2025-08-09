@@ -17,12 +17,12 @@ StandardError=journal
 SyslogIdentifier=golte
 
 # Security settings
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/opt/golte
-CapabilityBoundingSet=CAP_DAC_OVERRIDE
+#NoNewPrivileges=false
+#PrivateTmp=false
+#ProtectSystem=strict
+#ProtectHome=false
+#ReadWritePaths=/opt/golte
+#CapabilityBoundingSet=CAP_DAC_OVERRIDE
 
 # Environment
 Environment=GOLTE_LOGGING_LEVEL=info

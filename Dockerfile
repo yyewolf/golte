@@ -5,7 +5,7 @@ FROM arm32v7/golang:1.24-bookworm AS builder
 WORKDIR /app
 
 # Required for version info
-RUN apt-get update && apt-get install -y git pkg-config libopus-dev libopusfile-dev
+RUN apt-get update && apt-get install -y git pkg-config libopus-dev libopusfile-dev libasound2-dev
 
 # Copy go mod files
 COPY go.mod go.sum ./

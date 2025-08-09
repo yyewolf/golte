@@ -1,4 +1,4 @@
-package ffmpg
+package ffmpeg
 
 import (
 	"bufio"

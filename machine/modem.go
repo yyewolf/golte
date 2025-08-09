@@ -8,6 +8,7 @@ import (
 
 	"golte/call"
 	"golte/config"
+	"golte/playback"
 
 	"github.com/warthog618/modem/at"
 	"github.com/warthog618/modem/gsm"
@@ -19,16 +20,28 @@ type ModemManager struct {
 	config             *config.Config
 	gsm                *gsm.GSM
 	call               *call.Call
+	playback           *playback.Playback
 	logger             *slog.Logger
 	callNotifyCallback func(from, message string)
+
+	state *ModemState
+}
+
+type ModemState struct {
+	password string
+}
+
+func NewState() *ModemState {
+	return &ModemState{}
 }
 
 // NewModemManager creates a new ModemManager instance
-func NewModemManager(cfg *config.Config, callNotifyCallback func(from, message string)) *ModemManager {
+func NewModemManager(cfg *config.Config, playback *playback.Playback, callNotifyCallback func(from, message string)) *ModemManager {
 	return &ModemManager{
 		config:             cfg,
 		logger:             slog.With("component", "modem"),
 		callNotifyCallback: callNotifyCallback,
+		playback:           playback,
 	}
 }
 
@@ -69,7 +82,29 @@ func (m *ModemManager) Initialize() error {
 		message := fmt.Sprintf("📞 Incoming voice call")
 		m.callNotifyCallback(call, message)
 		m.call.PickUp()
+		m.state = NewState()
+
+		time.Sleep(1 * time.Second) // Wait for call to connect
+		m.playback.AddPredecoded("audio/bonjour_veuillez_entrez_votre_mot_de_passe.mp3")
 	})
+
+	m.call.SetDTMFHandler(func(digit string) {
+		m.logger.Info("DTMF digit received", slog.String("digit", digit))
+
+		if digit == "#" {
+			m.state = NewState()
+			return
+		}
+
+		m.playback.AddPredecoded("audio/" + digit + ".mp3")
+		m.state.password += digit
+
+		if m.state.password == "52226636" {
+			m.logger.Info("Password entered correctly")
+			m.playback.AddPredecoded("audio/mot_de_passe_correct.mp3")
+		}
+	})
+	m.call.EnableDTMFDetection()
 
 	m.logger.Info("Modem initialized successfully")
 	return nil

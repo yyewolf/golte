@@ -9,12 +9,14 @@ import (
 	"time"
 
 	"golte/config"
+	"golte/playback"
 
 	"github.com/disgoorg/disgo"
 	"github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/discord"
 	"github.com/disgoorg/disgo/events"
 	"github.com/disgoorg/disgo/gateway"
+	"github.com/disgoorg/disgo/voice"
 	"github.com/disgoorg/snowflake/v2"
 )
 
@@ -23,6 +25,9 @@ type DiscordManager struct {
 	config     *config.Config
 	client     bot.Client
 	logger     *slog.Logger
+	playback   *playback.Playback
+	streamer   *playback.PCMStreamer
+	conn       voice.Conn
 	smsFunc    func(number, message string) error
 	callFunc   func(number string) error
 	hangupFunc func() error
@@ -30,10 +35,11 @@ type DiscordManager struct {
 }
 
 // NewDiscordManager creates a new DiscordManager instance
-func NewDiscordManager(cfg *config.Config, smsFunc func(number, message string) error, callFunc func(number string) error, hangupFunc func() error, notifyFunc func(notificationType NotificationType, from, message string)) *DiscordManager {
+func NewDiscordManager(cfg *config.Config, playback *playback.Playback, smsFunc func(number, message string) error, callFunc func(number string) error, hangupFunc func() error, notifyFunc func(notificationType NotificationType, from, message string)) *DiscordManager {
 	return &DiscordManager{
 		config:     cfg,
 		logger:     slog.With("component", "discord"),
+		playback:   playback,
 		smsFunc:    smsFunc,
 		callFunc:   callFunc,
 		hangupFunc: hangupFunc,
@@ -52,6 +58,8 @@ func (d *DiscordManager) Initialize() error {
 		bot.WithEventListenerFunc(d.commandListener),
 		bot.WithEventListenerFunc(d.messageListener),
 		bot.WithEventListenerFunc(d.readyListener),
+		bot.WithEventListenerFunc(d.voiceServerUpdate),
+		bot.WithEventListenerFunc(d.voiceServerUpdate),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create Discord client: %w", err)
@@ -240,6 +248,33 @@ func (d *DiscordManager) readyListener(event *events.Ready) {
 		var ch = make(chan os.Signal, 1)
 		d.ConnectAndPlay(ch)
 	}()
+}
+
+// readyListener handles Discord ready event
+func (d *DiscordManager) voiceStateUpdate(event *events.GuildVoiceStateUpdate) {
+	if d.conn == nil {
+		return
+	}
+
+	d.conn.HandleVoiceStateUpdate(gateway.EventVoiceStateUpdate{
+		VoiceState: event.VoiceState,
+		Member:     event.Member,
+	})
+
+	fmt.Println(event)
+}
+
+// readyListener handles Discord ready event
+func (d *DiscordManager) voiceServerUpdate(event *events.VoiceServerUpdate) {
+	if d.conn == nil {
+		return
+	}
+
+	d.conn.HandleVoiceServerUpdate(gateway.EventVoiceServerUpdate{
+		Token:    event.Token,
+		GuildID:  event.GuildID,
+		Endpoint: event.Endpoint,
+	})
 }
 
 // messageListener handles Discord message events for replying to SMS embeds

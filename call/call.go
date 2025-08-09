@@ -15,10 +15,14 @@ import (
 // IncomingCallHandler is a callback for incoming calls with phone number
 type IncomingCallHandler func(phoneNumber string)
 
+// DTMFHandler is a callback for DTMF tone detection with the detected digit
+type DTMFHandler func(digit string)
+
 // Call represents a call manager that wraps AT modem functionality
 type Call struct {
 	*at.AT
 	incomingHandler IncomingCallHandler
+	dtmfHandler     DTMFHandler
 	isListening     bool
 	indicationMutex sync.RWMutex
 }
@@ -282,13 +286,20 @@ func (c *Call) StopListening() error {
 	// Remove the CLIP indication by setting it to nil
 	c.AddIndication("+CLIP", nil)
 
+	// Remove DTMF indication if it was set
+	c.AddIndication("+RXDTMF", nil)
+
 	// Disable caller ID notifications
 	_, err := c.Command("+CLIP=0")
 	if err != nil {
 		log.Printf("Warning: failed to disable caller ID: %v", err)
 	}
 
+	// Disable DTMF detection (ignore errors as it might not be enabled)
+	c.Command("+DDET=0")
+
 	c.incomingHandler = nil
+	c.dtmfHandler = nil
 	c.isListening = false
 	return nil
 }
@@ -312,49 +323,65 @@ func (c *Call) extractPhoneNumber(clipData string) string {
 	return ""
 }
 
-// SetIncomingCallHandler sets or updates the incoming call handler
-// This allows changing the handler without stopping and restarting listening
-func (c *Call) SetIncomingCallHandler(handler IncomingCallHandler) error {
+// extractDTMFDigit extracts the DTMF digit from a +RXDTMF indication
+// RXDTMF format: +RXDTMF: digit
+func (c *Call) extractDTMFDigit(dtmfData string) string {
+	// Use regex to extract DTMF digit from RXDTMF indication
+	reg := regexp.MustCompile(`\+RXDTMF:\s*([0-9A-D#*])`)
+	matches := reg.FindStringSubmatch(dtmfData)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+// SetDTMFHandler sets the DTMF detection handler
+// The handler will be called with the detected DTMF digit (0-9, A-D, #, *)
+func (c *Call) SetDTMFHandler(handler DTMFHandler) {
+	c.indicationMutex.Lock()
+	defer c.indicationMutex.Unlock()
+	c.dtmfHandler = handler
+}
+
+// EnableDTMFDetection enables DTMF tone detection
+// Uses AT+DDET command to enable DTMF detection
+func (c *Call) EnableDTMFDetection(options ...at.CommandOption) error {
 	c.indicationMutex.Lock()
 	defer c.indicationMutex.Unlock()
 
-	if !c.isListening {
-		return fmt.Errorf("not currently listening, call StartListening first")
+	// Add indication for DTMF detection
+	c.AddIndication("+RXDTMF", func(info []string) {
+		if len(info) > 0 && c.dtmfHandler != nil {
+			digit := c.extractDTMFDigit(info[0])
+			if digit != "" {
+				c.dtmfHandler(digit)
+			}
+		}
+	})
+
+	// Enable DTMF detection
+	_, err := c.Command("+DDET=1", options...)
+	if err != nil {
+		return fmt.Errorf("failed to enable DTMF detection: %w", err)
 	}
 
-	if handler == nil {
-		return fmt.Errorf("handler cannot be nil")
-	}
-
-	c.incomingHandler = handler
 	return nil
 }
 
-// High-level API usage example:
-//
-// callManager := call.New(atModem)
-//
-// // Start listening for incoming calls
-// err := callManager.StartListening(func(phoneNumber string) {
-//     fmt.Printf("Incoming call from: %s\n", phoneNumber)
-//     // Handle the incoming call (e.g., answer, log, etc.)
-// })
-// if err != nil {
-//     log.Printf("Error starting listener: %v", err)
-// }
-//
-// // Later, stop listening
-// err = callManager.StopListening()
-// if err != nil {
-//     log.Printf("Error stopping listener: %v", err)
-// }
-//
-// Low-level AT indication usage example:
-//
-// at.AddIndication("+CLIP", func(info []string) {
-// 	reg := regexp.MustCompile(`"+CLIP: "([^"]+)"`)
-// 	phoneNumber := reg.FindStringSubmatch(info[0])
-// 	if len(phoneNumber) > 1 {
-// 		fmt.Println("Incoming call from:", phoneNumber[1])
-// 	}
-// })
+// DisableDTMFDetection disables DTMF tone detection
+func (c *Call) DisableDTMFDetection(options ...at.CommandOption) error {
+	c.indicationMutex.Lock()
+	defer c.indicationMutex.Unlock()
+
+	// Remove DTMF indication
+	c.AddIndication("+RXDTMF", nil)
+
+	// Disable DTMF detection
+	_, err := c.Command("+DDET=0", options...)
+	if err != nil {
+		log.Printf("Warning: failed to disable DTMF detection: %v", err)
+	}
+
+	c.dtmfHandler = nil
+	return nil
+}

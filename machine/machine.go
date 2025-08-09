@@ -3,11 +3,14 @@ package machine
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"sync"
 
 	"golte/config"
+	"golte/playback"
 
+	"github.com/gopxl/beep/v2"
 	"github.com/warthog618/modem/gsm"
 )
 
@@ -18,6 +21,7 @@ type Machine struct {
 	discord       *DiscordManager
 	signalMonitor *SignalMonitor
 	logger        *slog.Logger
+	playback      *playback.Playback
 	ctx           context.Context
 	cancel        context.CancelFunc
 	wg            sync.WaitGroup
@@ -38,13 +42,16 @@ func New(cfg *config.Config) *Machine {
 		errorChan: make(chan error, 10),
 	}
 
+	pb, err := playback.NewPlayback(beep.SampleRate(48000))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Initialize components
-	m.modem = NewModemManager(cfg, m.sendCallNotification)
+	m.modem = NewModemManager(cfg, pb, m.sendCallNotification)
 	m.signalMonitor = NewSignalMonitor(cfg, m.modem, &m.wg)
-
-	// Discord manager needs SMS function and notification function
-	m.discord = NewDiscordManager(cfg, m.SendSMS, m.StartCall, m.HangUpCall, m.sendDiscordEmbed)
-
+	m.discord = NewDiscordManager(cfg, pb, m.SendSMS, m.StartCall, m.HangUpCall, m.sendDiscordEmbed)
+	m.playback = pb
 	return m
 }
 

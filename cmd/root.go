@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"golte/assets"
 	"golte/config"
 	"golte/logger"
 	"golte/machine"
@@ -94,6 +95,9 @@ func runServer(cmd *cobra.Command, args []string) error {
 	if err := logger.Setup(cfg.Logging.Level, cfg.Logging.Format); err != nil {
 		return fmt.Errorf("failed to setup logging: %w", err)
 	}
+
+	// Initialize predecoded audio cache
+	_ = assets.GetPredecodedCache()
 
 	// Create and initialize the machine
 	m := machine.New(cfg)
