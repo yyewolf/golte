@@ -6,6 +6,7 @@ import (
 
 	"github.com/disgoorg/audio/pcm"
 	"github.com/gopxl/beep/v2"
+	"github.com/gopxl/beep/v2/effects"
 )
 
 var ErrAlreadyClosed = errors.New("already closed")
@@ -87,7 +88,11 @@ func (s *PCMStreamer) Stream(samples [][2]float64) (n int, ok bool) {
 
 // GetStreamer implements StreamSource for PCMStreamer
 func (m *PCMStreamer) GetStreamer() (beep.Streamer, beep.Format, error) {
-	return m, beep.Format{SampleRate: SampleRate, NumChannels: 2}, nil
+	return &effects.Volume{
+		Streamer: m,
+		Base:     2,
+		Volume:   -5,
+	}, beep.Format{SampleRate: SampleRate, NumChannels: 2}, nil
 }
 
 // Reopen copies the streamer's state but resets the PCM buffer

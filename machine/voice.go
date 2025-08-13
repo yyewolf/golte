@@ -3,6 +3,7 @@ package machine
 import (
 	"context"
 	"golte/ffmpeg"
+	"log"
 	"os"
 	"syscall"
 
@@ -54,8 +55,10 @@ func (d *DiscordManager) ConnectAndPlay(closeChan chan os.Signal) {
 			d.streamer.Close()
 			d.streamer = d.streamer.Reopen()
 			d.playback.AddStream(d.streamer)
+			log.Println("Reopened streamer")
 		case voice.OpcodeClientDisconnect:
 			d.streamer.Close()
+			log.Println("Client disconnected, closing streamer")
 		}
 	})
 

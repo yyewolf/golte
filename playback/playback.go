@@ -1,7 +1,6 @@
 package playback
 
 import (
-	"embed"
 	"fmt"
 	"time"
 
@@ -63,11 +62,6 @@ func (p *Playback) AddStream(source StreamSource) error {
 	}
 
 	return nil
-}
-
-// AddMP3 is a convenience method to add an MP3 file
-func (p *Playback) AddMP3(fs embed.FS, filePath string) error {
-	return p.AddStream(&MP3Source{FS: fs, FilePath: filePath})
 }
 
 // AddPredecoded is a convenience method to add a predecoded audio file

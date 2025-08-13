@@ -44,7 +44,7 @@ func New(ctx context.Context, opts ...ffmpeg.ConfigOpt) (*AudioProvider, error) 
 		"-i", "hw:2,0",
 		"-ac", strconv.Itoa(cfg.Channels),
 		"-ar", strconv.Itoa(cfg.SampleRate),
-		"-af", "afftdn=nr=10,arnndn=m=/opt/golte/std.rnnn,lowpass=f=6000,highpass=f=150",
+		"-af", "afftdn=nr=10,arnndn=m=/opt/golte/std.rnnn,lowpass=f=6000,highpass=f=150,volume=0.5",
 		"-f", "s16le",
 		"-fflags", "+genpts+igndts",
 		"-avoid_negative_ts", "make_zero",

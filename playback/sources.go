@@ -6,24 +6,8 @@ import (
 	"golte/assets"
 
 	"github.com/gopxl/beep/v2"
-	"github.com/gopxl/beep/v2/mp3"
+	"github.com/gopxl/beep/v2/effects"
 )
-
-// GetStreamer implements StreamSource for MP3Source
-func (m *MP3Source) GetStreamer() (beep.Streamer, beep.Format, error) {
-	file, err := m.FS.Open(m.FilePath)
-	if err != nil {
-		return nil, beep.Format{}, fmt.Errorf("failed to open MP3 file: %w", err)
-	}
-
-	streamer, format, err := mp3.Decode(file)
-	if err != nil {
-		file.Close()
-		return nil, beep.Format{}, fmt.Errorf("failed to decode MP3: %w", err)
-	}
-
-	return streamer, format, nil
-}
 
 // GetStreamer implements StreamSource for PredecodedSource
 func (p *PredecodedSource) GetStreamer() (beep.Streamer, beep.Format, error) {
@@ -34,6 +18,10 @@ func (p *PredecodedSource) GetStreamer() (beep.Streamer, beep.Format, error) {
 	}
 
 	// Create a new streamer from the buffer
-	streamer := audio.Buffer.Streamer(4096, audio.Buffer.Len()-8000)
-	return streamer, audio.Format, nil
+	streamer := audio.Buffer.Streamer(3000, audio.Buffer.Len()-7000)
+	return &effects.Volume{
+		Streamer: streamer,
+		Base:     2,
+		Volume:   -0.5,
+	}, audio.Format, nil
 }
