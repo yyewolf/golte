@@ -27,6 +27,21 @@ type Machine struct {
 	wg            sync.WaitGroup
 	stopChan      chan struct{}
 	errorChan     chan error
+
+	state *MachineState
+}
+
+type MachineState struct {
+	discordStream bool
+	password      string
+}
+
+func NewState() *MachineState {
+	return &MachineState{}
+}
+
+func (m *MachineState) ModemReset() {
+	m.password = ""
 }
 
 // New creates a new Machine instance
@@ -40,6 +55,7 @@ func New(cfg *config.Config) *Machine {
 		cancel:    cancel,
 		stopChan:  make(chan struct{}),
 		errorChan: make(chan error, 10),
+		state:     NewState(),
 	}
 
 	pb, err := playback.NewPlayback(beep.SampleRate(48000))
@@ -48,9 +64,9 @@ func New(cfg *config.Config) *Machine {
 	}
 
 	// Initialize components
-	m.modem = NewModemManager(cfg, pb, m.sendCallNotification)
+	m.modem = NewModemManager(cfg, m.state, pb, m.sendCallNotification)
 	m.signalMonitor = NewSignalMonitor(cfg, m.modem, &m.wg)
-	m.discord = NewDiscordManager(cfg, pb, m.SendSMS, m.StartCall, m.HangUpCall, m.sendDiscordEmbed)
+	m.discord = NewDiscordManager(cfg, pb, m.state, m.SendSMS, m.StartCall, m.HangUpCall, m.sendDiscordEmbed)
 	m.playback = pb
 	return m
 }

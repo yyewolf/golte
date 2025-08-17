@@ -24,25 +24,17 @@ type ModemManager struct {
 	logger             *slog.Logger
 	callNotifyCallback func(from, message string)
 
-	state *ModemState
-}
-
-type ModemState struct {
-	password string
-}
-
-func NewState() *ModemState {
-	return &ModemState{}
+	state *MachineState
 }
 
 // NewModemManager creates a new ModemManager instance
-func NewModemManager(cfg *config.Config, playback *playback.Playback, callNotifyCallback func(from, message string)) *ModemManager {
+func NewModemManager(cfg *config.Config, state *MachineState, playback *playback.Playback, callNotifyCallback func(from, message string)) *ModemManager {
 	return &ModemManager{
 		config:             cfg,
 		logger:             slog.With("component", "modem"),
 		callNotifyCallback: callNotifyCallback,
 		playback:           playback,
-		state:              NewState(),
+		state:              state,
 	}
 }
 
@@ -83,17 +75,27 @@ func (m *ModemManager) Initialize() error {
 		message := fmt.Sprintf("📞 Incoming voice call")
 		m.callNotifyCallback(call, message)
 		m.call.PickUp()
-		m.state = NewState()
+		m.state.ModemReset()
 
 		time.Sleep(1 * time.Second) // Wait for call to connect
+		// Do not play sounds when Discord stream is active
+		if m.state.discordStream {
+			return
+		}
+
 		m.playback.AddPredecoded("audio/bonjour_veuillez_entrez_votre_mot_de_passe.mp3")
 	})
 
 	m.call.SetDTMFHandler(func(digit string) {
 		m.logger.Info("DTMF digit received", slog.String("digit", digit))
 
+		// Do not play sounds when Discord stream is active
+		if m.state.discordStream {
+			return
+		}
+
 		if digit == "#" {
-			m.state = NewState()
+			m.state.ModemReset()
 			return
 		}
 

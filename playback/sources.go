@@ -22,6 +22,6 @@ func (p *PredecodedSource) GetStreamer() (beep.Streamer, beep.Format, error) {
 	return &effects.Volume{
 		Streamer: streamer,
 		Base:     2,
-		Volume:   -0.5,
+		Volume:   -4,
 	}, audio.Format, nil
 }

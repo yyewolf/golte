@@ -32,10 +32,12 @@ type DiscordManager struct {
 	callFunc   func(number string) error
 	hangupFunc func() error
 	notifyFunc func(notificationType NotificationType, from, message string)
+
+	state *MachineState
 }
 
 // NewDiscordManager creates a new DiscordManager instance
-func NewDiscordManager(cfg *config.Config, playback *playback.Playback, smsFunc func(number, message string) error, callFunc func(number string) error, hangupFunc func() error, notifyFunc func(notificationType NotificationType, from, message string)) *DiscordManager {
+func NewDiscordManager(cfg *config.Config, playback *playback.Playback, state *MachineState, smsFunc func(number, message string) error, callFunc func(number string) error, hangupFunc func() error, notifyFunc func(notificationType NotificationType, from, message string)) *DiscordManager {
 	return &DiscordManager{
 		config:     cfg,
 		logger:     slog.With("component", "discord"),
@@ -44,6 +46,7 @@ func NewDiscordManager(cfg *config.Config, playback *playback.Playback, smsFunc 
 		callFunc:   callFunc,
 		hangupFunc: hangupFunc,
 		notifyFunc: notifyFunc,
+		state:      state,
 	}
 }
 

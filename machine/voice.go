@@ -56,9 +56,11 @@ func (d *DiscordManager) ConnectAndPlay(closeChan chan os.Signal) {
 			d.streamer = d.streamer.Reopen()
 			d.playback.AddStream(d.streamer)
 			log.Println("Reopened streamer")
+			d.state.discordStream = true
 		case voice.OpcodeClientDisconnect:
 			d.streamer.Close()
 			log.Println("Client disconnected, closing streamer")
+			d.state.discordStream = false
 		}
 	})
 
