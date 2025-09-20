@@ -17,6 +17,13 @@ type Config struct {
 
 	// Logging configuration
 	Logging LoggingConfig `mapstructure:"logging"`
+
+	// Voice feature toggle
+	VoiceEnabled bool `mapstructure:"voice_enabled"`
+
+	// API feature toggle
+	APIEnabled bool   `mapstructure:"api_enabled"`
+	APIToken   string `mapstructure:"api_token"`
 }
 
 // ModemConfig holds modem-specific configuration
@@ -48,6 +55,9 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("modem.timeout", "20s")
 	viper.SetDefault("logging.level", "info")
 	viper.SetDefault("logging.format", "text")
+	viper.SetDefault("voice_enabled", true)
+	viper.SetDefault("api_enabled", false)
+	viper.SetDefault("api_token", "")
 
 	// Read config file
 	viper.SetConfigName("config")
@@ -91,6 +101,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Discord.VoiceChannelID == "" {
 		return &ConfigError{Field: "discord.voice_channel_id", Message: "Discord voice channel ID is required"}
+	}
+	if c.APIEnabled && c.APIToken == "" {
+		return &ConfigError{Field: "api_token", Message: "API token is required when API is enabled"}
 	}
 	return nil
 }

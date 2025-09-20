@@ -17,7 +17,7 @@ import (
 // Machine represents the main application state
 type Machine struct {
 	config        *config.Config
-	modem         *ModemManager
+	Modem         *ModemManager
 	discord       *DiscordManager
 	signalMonitor *SignalMonitor
 	logger        *slog.Logger
@@ -64,8 +64,8 @@ func New(cfg *config.Config) *Machine {
 	}
 
 	// Initialize components
-	m.modem = NewModemManager(cfg, m.state, pb, m.sendCallNotification)
-	m.signalMonitor = NewSignalMonitor(cfg, m.modem, &m.wg)
+	m.Modem = NewModemManager(cfg, m.state, pb, m.sendCallNotification)
+	m.signalMonitor = NewSignalMonitor(cfg, m.Modem, &m.wg)
 	m.discord = NewDiscordManager(cfg, pb, m.state, m.SendSMS, m.StartCall, m.HangUpCall, m.sendDiscordEmbed)
 	m.playback = pb
 	return m
@@ -76,7 +76,7 @@ func (m *Machine) Initialize() error {
 	m.logger.Info("Initializing machine...")
 
 	// Initialize modem
-	if err := m.modem.Initialize(); err != nil {
+	if err := m.Modem.Initialize(); err != nil {
 		return fmt.Errorf("failed to initialize modem: %w", err)
 	}
 
@@ -129,8 +129,8 @@ func (m *Machine) Stop() error {
 	}
 
 	// Stop SMS reception
-	if m.modem != nil {
-		m.modem.StopMessageReception()
+	if m.Modem != nil {
+		m.Modem.StopMessageReception()
 	}
 
 	// Wait for all goroutines to finish
@@ -147,24 +147,24 @@ func (m *Machine) Wait() error {
 		return m.ctx.Err()
 	case err := <-m.errorChan:
 		return err
-	case <-m.modem.Closed():
+	case <-m.Modem.Closed():
 		return fmt.Errorf("modem connection closed")
 	}
 }
 
 // SendSMS sends an SMS message through the modem
 func (m *Machine) SendSMS(number, message string) error {
-	return m.modem.SendSMS(number, message)
+	return m.Modem.SendSMS(number, message)
 }
 
 // StartCall initiates a call through the modem
 func (m *Machine) StartCall(number string) error {
-	return m.modem.StartCall(number)
+	return m.Modem.StartCall(number)
 }
 
 // HangUpCall hangs up the current call
 func (m *Machine) HangUpCall() error {
-	return m.modem.HangUpCall()
+	return m.Modem.HangUpCall()
 }
 
 // Error returns the error channel for monitoring errors
@@ -176,7 +176,7 @@ func (m *Machine) Error() <-chan error {
 func (m *Machine) startMessageReception() error {
 	m.logger.Info("Starting SMS message reception")
 
-	return m.modem.StartMessageReception(
+	return m.Modem.StartMessageReception(
 		func(msg gsm.Message) {
 			m.logger.Info("Received SMS",
 				slog.String("from", msg.Number),

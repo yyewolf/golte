@@ -54,16 +54,21 @@ func NewDiscordManager(cfg *config.Config, playback *playback.Playback, state *M
 func (d *DiscordManager) Initialize() error {
 	d.logger.Info("Initializing Discord client")
 
-	client, err := disgo.New(d.config.Discord.Token,
-		bot.WithGatewayConfigOpts(
-			gateway.WithIntents(gateway.IntentMessageContent|gateway.IntentGuilds|gateway.IntentGuildMessages|gateway.IntentDirectMessages|gateway.IntentGuildVoiceStates),
-		),
+	var gatewayIntents = gateway.IntentMessageContent | gateway.IntentGuilds | gateway.IntentGuildMessages | gateway.IntentDirectMessages
+	opts := []bot.ConfigOpt{
+		bot.WithGatewayConfigOpts(gateway.WithIntents(gatewayIntents)),
 		bot.WithEventListenerFunc(d.commandListener),
 		bot.WithEventListenerFunc(d.messageListener),
-		bot.WithEventListenerFunc(d.readyListener),
-		bot.WithEventListenerFunc(d.voiceServerUpdate),
-		bot.WithEventListenerFunc(d.voiceServerUpdate),
-	)
+	}
+	if d.config.VoiceEnabled {
+		gatewayIntents |= gateway.IntentGuildVoiceStates
+		opts = append(opts,
+			bot.WithEventListenerFunc(d.readyListener),
+			bot.WithEventListenerFunc(d.voiceServerUpdate),
+			bot.WithEventListenerFunc(d.voiceServerUpdate),
+		)
+	}
+	client, err := disgo.New(d.config.Discord.Token, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create Discord client: %w", err)
 	}
@@ -96,7 +101,7 @@ func (d *DiscordManager) Stop() {
 
 // getCommands returns the Discord slash commands
 func (d *DiscordManager) getCommands() []discord.ApplicationCommandCreate {
-	return []discord.ApplicationCommandCreate{
+	commands := []discord.ApplicationCommandCreate{
 		discord.SlashCommandCreate{
 			Name:        "send",
 			Description: "sends a SMS",
@@ -113,22 +118,27 @@ func (d *DiscordManager) getCommands() []discord.ApplicationCommandCreate {
 				},
 			},
 		},
-		discord.SlashCommandCreate{
-			Name:        "call",
-			Description: "makes a phone call",
-			Options: []discord.ApplicationCommandOption{
-				discord.ApplicationCommandOptionString{
-					Name:        "number",
-					Description: "The phone number to call",
-					Required:    true,
+	}
+	if d.config.VoiceEnabled {
+		commands = append(commands,
+			discord.SlashCommandCreate{
+				Name:        "call",
+				Description: "makes a phone call",
+				Options: []discord.ApplicationCommandOption{
+					discord.ApplicationCommandOptionString{
+						Name:        "number",
+						Description: "The phone number to call",
+						Required:    true,
+					},
 				},
 			},
-		},
-		discord.SlashCommandCreate{
-			Name:        "hangup",
-			Description: "hangs up the current phone call",
-		},
+			discord.SlashCommandCreate{
+				Name:        "hangup",
+				Description: "hangs up the current phone call",
+			},
+		)
 	}
+	return commands
 }
 
 // commandListener handles Discord slash commands

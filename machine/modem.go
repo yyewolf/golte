@@ -25,6 +25,8 @@ type ModemManager struct {
 	callNotifyCallback func(from, message string)
 
 	state *MachineState
+
+	messageHooks []func(gsm.Message)
 }
 
 // NewModemManager creates a new ModemManager instance
@@ -35,6 +37,7 @@ func NewModemManager(cfg *config.Config, state *MachineState, playback *playback
 		callNotifyCallback: callNotifyCallback,
 		playback:           playback,
 		state:              state,
+		messageHooks:       []func(gsm.Message){},
 	}
 }
 
@@ -122,9 +125,9 @@ func (m *ModemManager) SendSMS(number, message string) error {
 	var err error
 	if len(message) > 160 {
 		// Long SMS, split into multiple messages
-		_, err = m.gsm.SendLongMessage(number, message, at.WithTimeout(5*time.Second))
+		_, err = m.gsm.SendLongMessage(number, message, at.WithTimeout(15*time.Second))
 	} else {
-		_, err = m.gsm.SendShortMessage(number, message, at.WithTimeout(5*time.Second))
+		_, err = m.gsm.SendShortMessage(number, message, at.WithTimeout(15*time.Second))
 	}
 
 	if err != nil {
@@ -142,13 +145,26 @@ func (m *ModemManager) SendSMS(number, message string) error {
 func (m *ModemManager) StartMessageReception(onMessage func(gsm.Message), onError func(error)) error {
 	m.logger.Info("Starting SMS message reception")
 
-	err := m.gsm.StartMessageRx(onMessage, onError)
+	// Wrap the onMessage callback to also call hooks
+	wrappedOnMessage := func(msg gsm.Message) {
+		onMessage(msg)
+		for _, hook := range m.messageHooks {
+			hook(msg)
+		}
+	}
+	err := m.gsm.StartMessageRx(wrappedOnMessage, onError)
 	if err != nil {
 		return fmt.Errorf("failed to start message reception: %w", err)
 	}
 
 	m.logger.Info("SMS message reception started")
 	return nil
+
+}
+
+// AddMessageHook allows external code to register a callback for received messages
+func (m *ModemManager) AddMessageHook(hook func(gsm.Message)) {
+	m.messageHooks = append(m.messageHooks, hook)
 }
 
 // StopMessageReception stops SMS message reception

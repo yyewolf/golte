@@ -2,6 +2,9 @@
 # This file contains configuration for the GSM/LTE to Discord bridge
 
 # Modem configuration
+voice_enabled: false  # Set to false to disable all voice features and commands
+api_enabled: false   # Set to true to enable the API web server
+api_token: ""       # Required if api_enabled is true. Set a secure token for API access
 modem:
   device: "/dev/serial0"    # Path to the modem device
   baud: 115200             # Baud rate for serial communication

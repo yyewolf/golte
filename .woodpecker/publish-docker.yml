@@ -1,0 +1,16 @@
+when:
+- event: push
+  branch: main
+
+steps:
+- name: publish
+  image: woodpeckerci/plugin-docker-buildx
+  settings:
+    platforms: linux/arm/v7
+    repo: registry.yewolf.fr/yyewolf/golte
+    registry: registry.yewolf.fr
+    auto_tag: true
+    username:
+      from_secret: REGISTRY_USERNAME
+    password:
+      from_secret: REGISTRY_PASSWORD

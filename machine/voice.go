@@ -15,6 +15,10 @@ import (
 )
 
 func (d *DiscordManager) ConnectAndPlay(closeChan chan os.Signal) {
+	if !d.config.VoiceEnabled {
+		log.Println("Voice features are disabled in config. Skipping voice connection.")
+		return
+	}
 	guild_id := snowflake.MustParse(d.config.Discord.GuildID)
 	vc_id := snowflake.MustParse(d.config.Discord.VoiceChannelID)
 

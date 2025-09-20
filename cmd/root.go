@@ -7,10 +7,13 @@ import (
 	"syscall"
 	"time"
 
+	"golte/api"
 	"golte/assets"
 	"golte/config"
 	"golte/logger"
 	"golte/machine"
+
+	"github.com/warthog618/modem/gsm"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -108,6 +111,20 @@ func runServer(cmd *cobra.Command, args []string) error {
 	// Start the machine
 	if err := m.Start(); err != nil {
 		return fmt.Errorf("failed to start machine: %w", err)
+	}
+
+	// Start API server if enabled
+	if cfg.APIEnabled {
+		go func() {
+			// Use a message store for last 10 messages
+			store := api.NewMessageStore(10)
+			// Register a message hook to store last 10 messages for API
+			m.Modem.AddMessageHook(func(msg gsm.Message) {
+				store.Add(api.Message{Number: msg.Number, Message: msg.Message})
+			})
+			apiServer := api.NewServer(cfg, store, m.SendSMS)
+			apiServer.Start(":8080") // Listen on port 8080
+		}()
 	}
 
 	// Setup graceful shutdown
