@@ -122,7 +122,7 @@ func (m *ModemManager) SendSMS(number, message string) error {
 		slog.String("number", number),
 		slog.Int("length", len(message)))
 
-	_, err := m.gsm.SendLongMessage(number, message, at.WithTimeout(15*time.Second))
+	_, err := m.gsm.SendLongMessage(number, message, at.WithTimeout(60*time.Second))
 
 	if err != nil {
 		m.logger.Error("Failed to send SMS",
